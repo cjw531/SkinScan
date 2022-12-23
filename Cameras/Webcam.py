@@ -164,7 +164,8 @@ class Internal(Camera, ABC):
 
 class External(Camera):
 
-    def __init__(self, exposure=0.01, white_balance=0, auto_focus=False, grayscale=True, external_camera_port=0):
+    # external camera port param: https://stackoverflow.com/a/63104657
+    def __init__(self, exposure=0.01, white_balance=0, auto_focus=False, grayscale=True, external_camera_port=-1):
         # Setting and initializing the external camera
         self.port = external_camera_port
         self.cap = cv2.VideoCapture(self.port)
