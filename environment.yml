@@ -1,0 +1,37 @@
+# To run: $ conda env create -f environment.yml
+name: skinscan
+channels:
+    - conda-forge
+dependencies:
+    - python=3.8
+    - pip
+    - xraylib
+    - numpy=1.23.1
+    - pillow=7.0.0
+    - matplotlib==3.2.1
+    - pandas==1.1.1
+    - tifffile==2020.6.3
+    - scipy==1.5.2
+    - scikit-image==0.17.2
+    - tqdm==4.48.2
+    - ipython==7.18.1
+    - ipywidgets
+    - ipykernel
+    - pip:
+      - pypylon==1.8.0 # Requirement for a Basler Camera
+      - torch==1.4.0
+      - wavepy==1.0.5
+      - checkerboard==0.2.4
+      - opencv-contrib-python-headless==4.4.0.40 # headless because of PyQT (https://stackoverflow.com/a/59506722)
+      - selenium==3.141.0
+      - jinja2==3.0.3 # bokeh dependency
+      - bokeh==0.12.5
+      - PyQt5
+      - screeninfo # to get list of all monitor pixels
+
+# activate conda environment, install Spinnaker SDK
+# sudo python3.8 -m pip install spinnaker_python-3.x.x.x-cp37-cp37mu-macos_x86_x64.whl" for 64-bit Python 3.7
+# flag --force-reinstall required if Python Spinnaker is installed already to the global environment
+
+# if import gives numpy error ('module 'numpy' has no attribute 'bool'),
+# $ sudo pip3 install --force-reinstall numpy==1.23.1
