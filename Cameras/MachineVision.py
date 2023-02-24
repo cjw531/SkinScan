@@ -1,3 +1,4 @@
+import os
 from pypylon import pylon
 from Camera import Camera
 from abc import ABC
@@ -7,9 +8,8 @@ from skimage import io
 from io import BytesIO
 from IPython.display import clear_output, Image, display, update_display
 import PIL
-
-
-# from PySpinCapture import PySpinCapture as psc
+# from Cameras.liveDisplay import ptgCamStream, imgShow, patternDisplay
+from Cameras.PySpinCapture import PySpinCapture as psc
 
 
 class Basler(Camera, ABC):
@@ -211,51 +211,102 @@ class Basler(Camera, ABC):
 
 
 class Flir(Camera, ABC):
-    def __init__(self, exposure, white_balance, auto_focus, fps, resolution, grayscale):
-        super().__init__(exposure, white_balance, auto_focus, fps, resolution, grayscale)
+    def __init__(self, exposure=0.01, white_balance=1, auto_focus=False, grayscale=False):
+        self.sessionDir = None
         self._isMonochrome = True
         self._is16bits = True
-        self.Cam = psc(0, self._isMonochrome, self._is16bits)
 
-    def getImage(self):
-        raise NotImplementedError
+        # # self.NumPatterns = NUM_PATTERN
+        # self.displayWidth = DISPLAY_WIDTH
+        # self.displayHeight = DISPLAY_HEIGHT
+        # self.setDefPattern()
+
+        self.Cam = psc(0, self._isMonochrome, self._is16bits)
+        self.height = self.Cam.height
+        self.width = self.Cam.width
+
+        # Get framerate and resolution of camera
+        fps = self.getFPS()
+        resolution = self.getResolution()
+        # Init base class
+        super().__init__(exposure, white_balance, auto_focus, fps, resolution, grayscale)
+        self.hdr_exposures = None
+
+    def getImage(self, name='test', saveImage=True, saveNumpy=True, calibration=False, calibrationName=None):
+        filenamePNG, numpyPath = '', '' # init img and numpy save path name
+        if calibration:
+            if calibrationName is None: # calibration subfolder name NOT defined
+                filenamePNG = 'CalibrationImages/' + name + '.png'
+                numpyPath = 'CalibrationNumpyData/' + name
+            else: # calibration subfolder name defined
+                filenamePNG = os.path.join('CalibrationImages/' + calibrationName,  name + '.PNG')
+                numpyPath = os.path.join('CalibrationNumpyData/' + calibrationName,  name)
+        else: # simple capture, non-calibration
+            filenamePNG = 'CapturedImages/' + name + '.png'
+            numpyPath = 'CapturedNumpyData/' + name
+
+        try:
+            _, img = self.Cam.grabFrame() # Take and return current camera frame
+
+            if saveImage: # image save
+                cv2.imwrite(filenamePNG, cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+
+            if saveNumpy: # img in numpy format save
+                np.save(numpyPath, img)
+
+            return img
+
+        except SystemError:
+            self.quit_and_open()
+            return None
 
     def setExposure(self, exposure):
         self.Cam.setExposure(exposure)
-        raise NotImplementedError
 
     def getExposure(self):
-        raise NotImplementedError
+        return self.Cam.getExposure()
 
     def getFPS(self):
-        raise NotImplementedError
+        return self.Cam.getFPS()
 
-    def setFPS(self):
-        raise NotImplementedError
+    def setFPS(self, fps):
+        self.Cam.setFPS(fps)
 
     def setAutoGain(self):
-        raise NotImplementedError
+        self.Cam.setCamAutoProperty()
 
     def getGain(self):
-        raise NotImplementedError
+        return self.Cam.getGain()
 
     def setGain(self, gain):
         self.Cam.setGain(gain)
 
     def getResolution(self):
-        raise NotImplementedError
+        return self.Cam.getResolution()
 
-    def setResolution(self):
-        raise NotImplementedError
+    def setResolution(self, resolution):
+        self.Cam.setWidth(resolution[0])
+        self.Cam.setHeight(resolution[1])
 
     def viewCameraStream(self):
-        raise NotImplementedError
+        img = self.getImage(saveImage=False, saveNumpy=False)
+        
+        while True:
+            _, img = self.Cam.grabFrameCont()
+            cv2.imshow('FLIR camera image', img)
+            c = cv2.waitKey(1)
+            if c != -1:
+                self.Cam._camera.EndAcquisition() # When everything done, release the capture
+                cv2.destroyAllWindows()
+                self.quit_and_open()
+                break
 
     def quit_and_close(self):
-        raise NotImplementedError
+        self.Cam.release()
 
     def quit_and_open(self):
-        raise NotImplementedError
+        self.Cam.release()
+        self.Cam = psc(1, self._isMonochrome, self._is16bits)
 
     def getStatus(self):
         raise NotImplementedError
