@@ -1,5 +1,5 @@
 from abc import ABC
-import tkinter
+# import tkinter
 from PIL import Image, ImageTk
 import numpy as np
 import cv2
@@ -11,28 +11,13 @@ import warnings
 warnings.filterwarnings("ignore", message="module not found")
 from Projection import Projection
 
-
 class Screen(Projection, ABC):
-    def __init__(self, frequency=0):
-        # Initialize internal screen fullscreen
-        self.root = tkinter.Tk()
-        #self.root.attributes('-fullscreen', True)
-        #self.root.overrideredirect(1)
-        # Get screen resolution
-        w, h = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
-        print("Screen resolution: ", (w, h))
-        resolution = (w, h)
-        self.root.overrideredirect(True)
-        self.root.geometry("{0}x{1}+0+0".format(w, h))
-        self.root.focus_set()
-        self.root.bind("<Escape>", lambda e: e.widget.quit())
-        # Include quit button
-        # b = tkinter.Button(self.root, text="quit", command=self.quit_and_close)
-        # b.pack()
-        # Create black canvas
-        self.canvas = tkinter.Canvas(self.root, width=w, height=h)
-        self.canvas.pack()
-        self.canvas.configure(background='white')
+    def __init__(self, frequency=0, monitor_list=None, monitor_index=0):
+        self.projection_monitor = monitor_list[monitor_index] # connected monitors
+
+        print("Screen resolution: ", (self.projection_monitor.width, self.projection_monitor.height))
+        resolution = (self.projection_monitor.width, self.projection_monitor.height)
+
         # Init base class
         super().__init__(resolution, frequency)
         self.count = 0
@@ -56,14 +41,15 @@ class Screen(Projection, ABC):
         # Displays a series of pattern, which is updated in updateCanvas
         # If you only desire to view the projection, pass on None for the input camera
         self.camera = camera
-        self.root.after(100, self.updateCanvas())
-        self.root.mainloop()
-        self.root = None
+        cv2.waitKey(100)
+        self.update_opencv_window()
 
     def setPattern(self, pattern):
         # Sets pattern to project
         self.pattern = pattern
 
+    # TODO: Deprecated, original pattern projection code with tkinter
+    '''
     def updateCanvas(self):
         # Updates the pattern to project
         if self.count >= self.pattern.patterns.shape[-1]:
@@ -88,6 +74,34 @@ class Screen(Projection, ABC):
                 self.camera.getHDRImage(name='capture_'+str(self.count))
         self.count += 1
         self.root.after(100, self.updateCanvas())
+    '''
+
+    def update_opencv_window(self):
+        # Updates the pattern to project
+        if self.count >= self.pattern.patterns.shape[-1]:
+            # If done, quit projection
+            cv2.destroyAllWindows()
+            return
+        
+        modulation = (self.pattern.patterns[..., self.count] * 255).astype(np.uint8)
+        window_name = 'Pattern'
+        cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
+        cv2.imshow(window_name, modulation)
+        cv2.moveWindow(window_name, self.projection_monitor.x, self.projection_monitor.y)
+        cv2.resizeWindow(window_name, self.projection_monitor.width, self.projection_monitor.height)
+        cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        time.sleep(2)
+        if self.camera is None:
+            print("No camera initialized.")
+        else:
+            # Take snapshot
+            if self.camera.hdr_exposures is None:
+                self.camera.getImage(name='capture_'+str(self.count))
+            else:
+                self.camera.getHDRImage(name='capture_'+str(self.count))
+        self.count += 1
+        cv2.waitKey(100)
+        self.update_opencv_window()
 
     def getResolution(self):
         # Returns tuple of resolution (width x height)
@@ -99,6 +113,4 @@ class Screen(Projection, ABC):
 
     def quit_and_close(self):
         # Close the projection
-        self.root.update()
-        self.root.destroy()
-
+        cv2.destroyAllWindows()
